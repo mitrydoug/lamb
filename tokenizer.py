@@ -14,31 +14,40 @@ class Tokenizer(object):
         with open(filename, 'r') as f:
             self.src = f.read()
 
+    @classmethod
+    def syntax_token(cls, c):
+        return c in ([cls.OPEN,
+                      cls.CLOSE,
+                      cls.ABS,
+                      cls.BQUO])
+
     def tokenize(self):
         """
             Return tokens corresponding to the file
         """
         tokens = []
         token = ''
+
         for c in self.src:
-            special = True
-            if c in string.whitespace:
-                pass
-            elif c == Tokenizer.OPEN:
-                tokens.append(Tokenizer.OPEN)
-            elif c == Tokenizer.CLOSE:
-                tokens.append(Tokenizer.ABS)
-            elif c == Tokenizer.ABS:
-                tokens.append(Tokenizer.CLOSE)
-            elif c == Tokenizer.BQUO:
-                tokens.append(Tokenizer.BQUO)
+            if c in string.whitespace or Tokenizer.syntax_token(c):
+
+                if len(token) > 0:
+                    tokens.append(token)
+                    token = ''
+
+                if c == Tokenizer.OPEN:
+                    tokens.append(Tokenizer.OPEN)
+                elif c == Tokenizer.CLOSE:
+                    tokens.append(Tokenizer.CLOSE)
+                elif c == Tokenizer.ABS:
+                    tokens.append(Tokenizer.ABS)
+                elif c == Tokenizer.BQUO:
+                    tokens.append(Tokenizer.BQUO)
             else:
-                special = False
                 token += c
 
-            if special and len(token) > 0:
-                tokens.append(token)
-                token = ''
+        if len(token) > 0:
+            tokens.append(token)
 
         return tokens
 
