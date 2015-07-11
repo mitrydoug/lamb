@@ -8,6 +8,8 @@ class Tokenizer(object):
     CLOSE = ')'
     ABS = ':'
     BQUO = '`'
+    EQ = '='
+    COMMA = ','
 
     def __init__(self, filename):
         assert os.path.isfile(filename), filename + ": is not a valid file."
@@ -19,35 +21,45 @@ class Tokenizer(object):
         return c in ([cls.OPEN,
                       cls.CLOSE,
                       cls.ABS,
-                      cls.BQUO])
+                      cls.BQUO,
+                      cls.EQ,
+                      cls.COMMA])
 
     def tokenize(self):
         """
             Return tokens corresponding to the file
         """
-        tokens = []
-        token = ''
+        def _tokens():
+            token = ''
+            for c in self.src:
+                if c in string.whitespace or Tokenizer.syntax_token(c):
 
-        for c in self.src:
-            if c in string.whitespace or Tokenizer.syntax_token(c):
+                    if len(token) > 0:
+                        yield token
+                        token = ''
 
-                if len(token) > 0:
-                    tokens.append(token)
-                    token = ''
+                    if Tokenizer.syntax_token(c):
+                        yield c
 
-                if c == Tokenizer.OPEN:
-                    tokens.append(Tokenizer.OPEN)
-                elif c == Tokenizer.CLOSE:
-                    tokens.append(Tokenizer.CLOSE)
-                elif c == Tokenizer.ABS:
-                    tokens.append(Tokenizer.ABS)
-                elif c == Tokenizer.BQUO:
-                    tokens.append(Tokenizer.BQUO)
-            else:
-                token += c
+                else:
+                    token += c
 
-        if len(token) > 0:
-            tokens.append(token)
+            if len(token) > 0:
+                yield token
 
-        return tokens
+        self.tokenstream = _tokens()
+        self.onDeck = None
+
+    def peek(self):
+        if self.onDeck is None:
+            self.onDeck = next(self.tokenstream, None)
+        return self.onDeck
+
+    def pull(self):
+        if self.onDeck is None:
+            return next(self.tokenstream, None)
+        else:
+            res = self.onDeck
+            self.onDeck = None
+            return res
 

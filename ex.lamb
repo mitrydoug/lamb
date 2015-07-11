@@ -1,0 +1,170 @@
+. first  = . x y : x y,
+  second = . x y : y z
+: second first z;
+12 
+
+program = term
+
+term = single_term
+     | term single_term
+     | terms
+
+single_term = ( term )
+            | . bind : single_term
+            | VAR
+
+bind
+
+term -> term single_term -> single_term 12 -> . bind : term 12
+
+chomp = . x :,
+inc = . x : s x,
+dec = . x : chomp x
+add = . inc x y : 
+
+(   first  (x y : x)
+    second (x y : y)
+    third  (x y z : z)
+:   first second third)
+
+---------------------------------------------------------------------------------------
+
+program = term               P -> S
+
+term = single                S -> A
+     | term single             |  S A
+
+single = VAR                 A -> v
+       | (term)                |  ( S )
+       | (bterm)               |  ( B )
+
+bterm = formal : term        B -> C : S
+      | formal bterm           |  C B
+
+formal = VAR                 C -> v
+       | VAR (term)            |  v ( S )
+       | VAR (bterm)           |  v ( B )
+
+---------------------------------------------------------------------------------------
+The Table
+
+State 0:
+P -> . S
+S -> . A
+S -> . S A
+A -> . v
+A -> . ( S )
+A -> . ( B )
+
+    on S goto 1
+    on A goto 2
+    on v goto 3
+    on ( goto 4
+
+State 1:
+P -> S .
+S -> S . A
+A -> . v
+A -> . ( S )
+A -> . ( B )
+
+State 2:
+S -> A .
+
+State 3:
+A -> v .
+
+State 4:
+A -> ( . S )
+A -> ( . B )
+S -> . A
+S -> . S A
+B -> . C : S
+B -> . C B
+A -> . v
+A -> . ( S )
+A -> . ( B )
+C -> . v
+C -> . v ( S )
+C -> . v ( B )
+
+    on S goto 5
+    on B goto 8
+    on A goto 2
+    on C goto 10
+
+State 5:
+A -> ( S . )
+S -> S . A
+A -> . v
+A -> . ( S )
+A -> . ( B )
+
+    on A goto 6
+    on v goto 3
+    on ( goto 4
+    on ) goto 7
+
+State 6:
+S -> S A .
+
+State 7:
+A -> ( S ) .
+
+State 8:
+A -> ( B . )
+
+    on ) goto 9
+
+State 9:
+A -> ( B ) .
+
+State 10:
+B -> C . : S
+B -> C . B
+B -> . C : S
+B -> . C B
+C -> . v
+C -> . v ( S )
+C -> . v ( B )
+
+    on B goto 11
+    on C goto 10
+    on v goto 12
+
+State 11: 
+B -> C B .
+
+State 12:
+C -> v .
+C -> v . ( S )
+C -> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
