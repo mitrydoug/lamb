@@ -4,27 +4,161 @@ from tokenizer import Tokenizer
 from parser import Parser
 from re import search
 from pprint import pprint
+import os
+from termcolor import colored
 
 VAR = 0
 APP = 1
 ABS = 2
 EMPTY = 3
 
-def printTerm(term):
-    print("("),
-    if term[0] == APP:
-        assert len(term) == 3, "APP term has length = " + len(term)
-        printTerm(term[1])
-        printTerm(term[2])
-    elif term[0] == VAR:
-        assert len(term) == 2, "VAR term has length = " + len(term)
-        printTerm(term[1])
-    elif term[0] == ABS:
-        assert len(term) == 3, "ABS term has length = " + len(term)
-        print(term[1] + " : "),
-        printTerm(term[2])
+bindMap = dict()
 
-    print(")"),
+def printState(evalStack, msg=None):
+    os.system('clear')
+    print(msg if msg is not None else '')
+
+    def helper(evalStack, offset):
+
+        if len(evalStack) == 0:
+            return ''
+
+        term = evalStack.pop(0)
+        branch = -1
+
+        if term[0] == APP:
+            if len(evalStack) == 0:
+                a, b, c = 'red', 'cyan', 'grey'
+                noffset = offset
+            else:
+                branch = evalStack.pop(0)
+                if branch == 1:
+                    a, b, c = 'blue', 'grey', 'grey'
+                    noffset = offset + 1
+                else:
+                    a, b, c = 'grey', 'blue', 'grey'
+                    noffset = offset + 1 + len(termToString(term[1]))
+
+            res = ((' ' * offset) + colored('(', color=c)
+                    + colored(termToString(term[1]), color=a)
+                    + colored(termToString(term[2]), color=b)
+                    + colored(')', color=c)
+                    + '\n' + helper(evalStack, noffset))
+        elif term[0] == ABS:
+            if len(evalStack) == 0:
+                a, b, c = 'magenta', 'green', 'grey'
+                noffset = offset
+            else:
+                branch = evalStack.pop(0)
+                a, b, c = 'grey', 'blue', 'grey'
+                noffset = offset + 4 + len(bindMap[term[1]])
+            res = ((' ' * offset) + colored('([', color=c)
+                    + colored(bindMap[term[1]], color=a)
+                    + colored(']:', color=c)
+                    + colored(termToString(term[2]), color=b)
+                    + colored(')', color=c)
+                    + '\n' + helper(evalStack, noffset))
+        elif term[0] == VAR:
+            res = ((' ' * offset) + ' '
+                    + (('[' + colored(bindMap[term[1]], color='magenta') + ']')
+                        if term[1] in bindMap else colored(term[1], color='yellow')))
+
+        if branch != -1:
+            evalStack.insert(0, branch)
+        evalStack.insert(0, term)
+        return res
+
+    print(helper(evalStack, 0))
+    raw_input('(pause)')
+
+
+def termToString(term):
+    if term[0] == APP:
+        return ('(' +
+            termToString(term[1]) +
+            termToString(term[2]) +
+            ')')
+    elif term[0] == VAR:
+        return (' [' + bindMap[term[1]] + '] '
+            if term[1] in bindMap else (' ' + term[1] + ' '))
+    elif term[0] == ABS:
+        return ('(' +
+            (('[' + bindMap[term[1]] + ']')
+                if term[1] in bindMap else term[1]) +
+            ':' + termToString(term[2]) +
+            ')')
+
+def rebound(term,stack=[]):
+    if term[0] == ABS:
+        bindMap[rebound.count] = term[1]
+        stack.append((term[1], rebound.count))
+        rebound.count += 1
+        res = (ABS, stack[-1][1], rebound(term[2], stack))
+        stack.pop()
+        return res
+    elif term[0] == APP:
+        return (
+            APP,
+            rebound(term[1], stack),
+            rebound(term[2], stack))
+    elif term[0] == VAR:
+        for x, n in reversed(stack):
+            if term[1] == x:
+                return (VAR, n)
+        return (VAR, term[1])
+rebound.count = 0
+
+def process_term(term, evalStack=[]):
+
+    evalStack.append(term)
+    printState(evalStack, "visit term")
+
+    def rebind(b, act, par):
+        if act[0] == VAR and act[1] == b:
+            return par
+        elif act[0] == ABS:
+            if act[1] == b:
+                return act
+            else:
+                base = rebind(b, act[2], par)
+                return (act if base is None else (ABS, act[1], base))
+        elif act[0] == APP:
+            base1 = rebind(b, act[1], par)
+            base2 = rebind(b, act[2], par)
+            return (act if base1 is None and base2 is None
+                         else (APP,
+                               (act[1] if base1 is None
+                                     else base1),
+                               (act[2] if base2 is None
+                                     else base2)))
+
+    if term[0] == APP:
+        evalStack.append(1)
+        term = (APP, process_term(term[1], evalStack), term[2])
+        evalStack.pop()
+        evalStack.pop()
+        evalStack.append(term)
+        printState(evalStack, "Simplified Left")
+        if term[1][0] == ABS:
+            rb_term = rebind(term[1][1], term[1][2], term[2])
+            term = term[1][2] if rb_term is None else rb_term
+            evalStack.pop()
+            term = process_term(term, evalStack)
+            evalStack.append(term)
+            printState(evalStack, 'Term processed')
+            evalStack.pop()
+            return term
+
+    #if term[0] != VAR:
+        #evalStack.append(2)
+        #term = (term[0], term[1], process_term(term[2], evalStack))
+        #evalStack.pop()
+        #evalStack.pop()
+        #evalStack.append(term)
+        #printState(evalStack, "Simplified Right")
+
+    evalStack.pop()
+    return term
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -75,4 +209,8 @@ if __name__ == "__main__":
 
     p.build_table()
     term = p.parse()
-    pprint(term)
+
+    term = rebound(term)
+
+    term = process_term(term)
+    print(termToString(term))
