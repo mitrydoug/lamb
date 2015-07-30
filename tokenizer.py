@@ -28,14 +28,14 @@ class Tokenizer(object):
                 file.
             """
             token = ''
-            for c in self.src:
+            for c in src:
                 if c in string.whitespace or Tokenizer._syntax_token(c):
 
                     if len(token) > 0:
                         yield token
                         token = ''
 
-                    if Tokenizer.syntax_token(c):
+                    if Tokenizer._syntax_token(c):
                         yield c
 
                 else:
