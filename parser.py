@@ -176,8 +176,6 @@ class Parser(object):
         self.dataStack = []
         self.stateStack = [Parser.START]
 
-        self.tokenizer.tokenize()
-
         while self.stateStack[-1] != Parser.STOP:
             token = self.tokenizer.peek()
             t = getTerminal(token)
