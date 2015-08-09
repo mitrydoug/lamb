@@ -1,7 +1,32 @@
 from collections import defaultdict
 from pprint import pprint
 
+class ParserException(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 class Parser(object):
+
+    class ExpansionRule(object):
+
+        def __init__(self, exp, con):
+            self.expansion = exp
+            self.constructor = con
+
+    class NonTerminal(object):
+
+        def __init__(self, sv=None):
+            self.semantic_value = sv if sv is not None else self
+
+        @classmethod
+        def expansions(cls):
+            raise ParserException("Unimplemented.")
+
+        @classmethod
+        def rep(cls):
+            return cls.rep
 
     START = 0
     END = -1
