@@ -15,6 +15,7 @@ EMPTY = 3
 bindMap = dict()
 
 def printState(evalStack, msg=None):
+    return
     os.system('clear')
     print(msg if msg is not None else '')
 
@@ -161,56 +162,129 @@ def process_term(term, evalStack=[]):
     return term
 
 if __name__ == "__main__":
+
     if len(sys.argv) != 2:
         print('usage: ./lambda0.py source_file')
         sys.exit(0)
-    t = Tokenizer(sys.argv[1])
-    p = Parser(t)
 
-    t_open = p.add_terminal('(', lambda x: x == Tokenizer.OPEN)
-    t_close = p.add_terminal(')', lambda x: x == Tokenizer.CLOSE)
-    t_abs = p.add_terminal(':', lambda x: x == Tokenizer.ABS)
-    t_bquo = p.add_terminal('`', lambda x: x == Tokenizer.BQUO)
-    t_eq = p.add_terminal('=', lambda x: x == Tokenizer.EQ)
-    t_comma = p.add_terminal(',', lambda x: x == Tokenizer.COMMA)
-    t_var = p.add_terminal(
-        'v', lambda x: (search(r'^[^)`(:]+$', x) is not None))
+    tzer = Tokenizer(sys.argv[1])
 
-    nt_term = p.add_non_terminal('term')
-    nt_single = p.add_non_terminal('single')
-    nt_bterm = p.add_non_terminal('bterm')
-    nt_formal = p.add_non_terminal('formal')
+    t_open  = tzer.add_token_class(rep='(', regex=r'(')
+    t_close = tzer.add_token_class(rep=')', regex=r')')
+    t_abs   = tzer.add_token_class(rep=':', regex=r':')
+    t_eq    = tzer.add_token_class(rep='=', regex=r'=')
+    t_comma = tzer.add_token_class(rep=',', regex=r',')
+    t_as    = tzer.add_token_class(rep='@', regex=r'@')
+    t_var   = tzer.add_token_class(rep='VAR', regex=r'[^():=,@]*')
 
-    p.add_rule(nt_term, (nt_single,), lambda x : x)
-    p.add_rule(nt_term, (nt_term, nt_single), lambda t, s: (APP, t, s))
+    p = Parser(tzer)
 
-    p.add_rule(nt_single, (t_var,), lambda x: (VAR, x))
-    p.add_rule(nt_single, (t_open, nt_term, t_close), lambda o, t, c: t)
-    p.add_rule(nt_single, (t_open, nt_bterm, t_close), lambda o, b, c: b)
+    # nt_term   = p.add_non_terminal('term')
+    # nt_single = p.add_non_terminal('single')
+    # nt_bterm  = p.add_non_terminal('bterm')
+    # nt_formal = p.add_non_terminal('formal')
 
-    def abs_term(f, t):
-        if f[1] == EMPTY:
-            return (ABS, f[0], t)
-        else:
-            return (APP, (ABS, f[0], t), f[1])
+    class NT_Term(Parser.NonTerminal):
 
-    p.add_rule(nt_bterm, (nt_formal, t_abs, nt_term), lambda f, a, t: abs_term(f, t))
-    p.add_rule(nt_bterm, (nt_formal, t_comma, nt_bterm), lambda f, c, b: abs_term(f, b))
+        rep = 'term'
 
-    p.add_rule(nt_formal, (t_var,), lambda v: (v, EMPTY))
-    p.add_rule(nt_formal, (t_var, t_eq, nt_term), lambda v, e, t: (v, t))
+        @classmethod
+        def expansions(cls):
 
-    p.add_first_set(nt_term,   set([t_open, t_var]))
-    p.add_first_set(nt_single, set([t_open, t_var]))
-    p.add_first_set(nt_bterm,  set([t_var]))
-    p.add_first_set(nt_formal, set([t_var]))
+            yield Parser.ExpansionRule(
+                (NT_Single,),
+                lambda nt_single_sv: cls(nt_single_sv)
+            )
 
-    p.display()
+            yield Parser.ExpansionRule(
+                (NT_Term, NT_Single),
+                lambda nt_term, nt_single: cls(APPTerm(nt_term_sv, nt_single_sv))
+            )
 
-    p.build_table()
-    term = p.parse()
+    # p.add_rule(nt_term, (nt_single,), lambda x : x)
+    # p.add_rule(nt_term, (nt_term, nt_single), lambda t, s: (APP, t, s))
 
-    term = rebound(term)
+    class NT_Single(Parser.NonTerminal):
 
-    term = process_term(term)
-    print(termToString(term))
+        rep = 'single'
+
+        @classmethod
+        def expansions(cls):
+
+            yield Parser.ExpansionRule(
+                (t_var,),
+                lambda t_var: cls(VARTerm(t_var))
+            )
+
+            yield Parser.ExpansionRule(
+                (t_open, NT_Term_t_close),
+                lambda t_open, nt_term_sv, t_close: cls(nt_term_sv)
+            )
+
+            yield Parser.ExpansionRule(
+                (t_open, NT_BTerm, t_close),
+                lambda t_open, nt_bterm_sv, t_close: cls(nt_bterm_sv)
+            )
+
+    # p.add_rule(nt_single, (t_var,), lambda x: (VAR, x))
+    # p.add_rule(nt_single, (t_open, nt_term, t_close), lambda o, t, c: t)
+    # p.add_rule(nt_single, (t_open, nt_bterm, t_close), lambda o, b, c: b)
+
+    class NT_BTerm(Parser.NonTerminal):
+
+        rep = 'bterm'
+
+        @classmethod
+        def expansions(cls):
+
+            def abs_term(formal, term):
+                if f.assn is None:
+                    return ABSTerm(f.var, term)
+                else:
+                    return APPTerm(ABSTerm(f.var, term), f.assn)
+
+            yield Parser.ExpansionRule(
+                (NT_Formal, t_abs, NT_Term),
+                (lambda nt_formal, t_abs, nt_term_sv:
+                    abs_term(nt_formal, nt_term_sv))
+            )
+
+            yield Parser.ExpansionRule(
+                (NT_Formal, t_comma, t_abs, NT_Term),
+                (lambda nt_formal, t_comma, t_abs, nt_term_sv:
+                    abs_term(nt_formal, nt_term_sv))
+            )
+
+            yield Parser.ExpansionRule(
+                (NT_Formal, t_comma, NT_BTerm),
+                (lambda nt_formal, t_comma, nt_bterm_sv:
+                    abs_term(nt_formal, nt_bterm_sv))
+            )
+
+    # p.add_rule(nt_bterm, (nt_formal, t_abs, nt_term), lambda f, a, t: abs_term(f, t))
+    # p.add_rule(nt_bterm, (nt_formal, t_comma, t_abs, nt_term), lambda f, c, a, t: abs_term(f, t))
+    # p.add_rule(nt_bterm, (nt_formal, t_comma, nt_bterm), lambda f, c, b: abs_term(f, b))
+
+    class NT_Formal(Parser.NonTerminal):
+
+        rep = 'formal'
+
+        def __init__(self, var, assn=None):
+            super(NT_Formal, self).__init__()
+            self.var = var
+            self.assn = assn
+
+        @classmethod
+        def expansions(cls):
+
+            yield Parser.ExpansionRule(
+                (t_var,), lambda t_var: cls(t_var)
+            )
+
+            yield Parser.ExpansionRule(
+                (t_var, t_eq, NT_Term),
+                lambda t_var, t_eq, nt_term_sv: cls(t_var, nt_term_sv)
+            )
+
+    # p.add_rule(nt_formal, (t_var,), lambda v: (v, EMPTY))
+    # p.add_rule(nt_formal, (t_var, t_eq, nt_term), lambda v, e, t: (v, t))
