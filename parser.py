@@ -69,17 +69,19 @@ class Parser(object):
     def add_first_set(self, nt, se):
         self.firstSets[nt] = se
 
-    def display(self):
-        for nt in self.rules:
-            rule = self.repMap[nt] + " -> "
-            l = len(rule)
-            b = False
-            for exp in self.rules[nt]:
-                if b:
-                    rule += " " * (l - 3) + '|  '
-                b = True
-                rule += " ".join(map(lambda x: self.repMap[x], list(exp[0]))) + "\n"
-            print(rule + '\n')
+    def __str__(self):
+        def gen():
+            for nt in self.rules:
+                rule = self.repMap[nt] + " -> "
+                l = len(rule)
+                b = False
+                for exp in self.rules[nt]:
+                    if b:
+                        rule += " " * (l - 3) + '|  '
+                    b = True
+                    rule += " ".join(map(lambda x: self.repMap[x], list(exp[0]))) + "\n"
+                yield (rule + '\n')
+        return ''.join(gen())
 
     def build_table(self):
 
