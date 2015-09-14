@@ -14,13 +14,9 @@ class Tokenizer(object):
         Tokenize a file.
     """
 
-    def __init__(self, filename):
-        # check that filename is correct.
-        assert os.path.isfile(filename), filename + ": is not a valid file."
+    def __init__(self, src):
 
-        # read file, store contents
-        with open(filename, 'r') as f:
-            self.src = f.read()
+        self.src = src
 
         # capture the generator
         self.token_stream = None

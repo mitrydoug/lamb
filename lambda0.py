@@ -286,5 +286,3 @@ if __name__ == "__main__":
                 lambda t_var, t_eq, nt_term_sv: cls(t_var, nt_term_sv)
             )
 
-    # p.add_rule(nt_formal, (t_var,), lambda v: (v, EMPTY))
-    # p.add_rule(nt_formal, (t_var, t_eq, nt_term), lambda v, e, t: (v, t))
